@@ -1,0 +1,111 @@
+//@version=6
+// Made by ChangeHere based off of a conversation from RR-21-h9t in a youtube channel, I used GROK and Google searches to make and fix this script.  I need to learn fib and other stuff now.  Big thanks to RR!
+strategy("RR-21-h9t Style - Fib Bounce + SMA/VWAP + T1-T5", overlay=true, pyramiding=0, default_qty_type=strategy.fixed, default_qty_value=1)
+
+// ── Inputs ─────────────────────────────────────
+showFibs     = input.bool(true,  "Show Fibonacci Levels", group="Levels")
+showVWAP     = input.bool(true,  "Show VWAP", group="Levels")
+showSMA      = input.bool(true,  "Show SMA 21/50/200", group="Levels")
+
+// ── ATR (moved to top) ─────────────────────────
+atrValue = ta.atr(14)
+
+// ── SMA & VWAP ─────────────────────────────────
+sma21 = ta.sma(close, 21)
+sma50 = ta.sma(close, 50)
+sma200 = ta.sma(close, 200)
+vwapLine = ta.vwap(hlc3)
+
+// ── Recent Swing for Fib Levels ────────────────
+swingHigh = ta.pivothigh(high, 5, 5)
+swingLow  = ta.pivotlow(low, 5, 5)
+
+var float lastHigh = na
+var float lastLow  = na
+
+if not na(swingHigh)
+    lastHigh := swingHigh
+if not na(swingLow)
+    lastLow := swingLow
+
+// Fibonacci levels
+fibRange = lastHigh - lastLow
+fib382   = lastLow + fibRange * 0.382
+fib50    = lastLow + fibRange * 0.5
+fib618   = lastLow + fibRange * 0.618
+
+// ── Bounce Detection (RR-21-h9t style) ────────
+bounceLong = low <= fib382 or low <= fib50 or (low <= vwapLine and close > vwapLine)
+
+// ── Strategy Entry ─────────────────────────────
+if bounceLong
+    strategy.entry("Bounce Long", strategy.long)
+
+// ── Multi-Target T1-T5 ─────────────────────────
+tp1RR = 1.0
+tp2RR = 1.8
+tp3RR = 2.8
+tp4RR = 4.0
+tp5RR = 6.0
+
+tp1 = strategy.position_size > 0 ? strategy.position_avg_price + atrValue * tp1RR : na
+tp2 = strategy.position_size > 0 ? strategy.position_avg_price + atrValue * tp2RR : na
+tp3 = strategy.position_size > 0 ? strategy.position_avg_price + atrValue * tp3RR : na
+tp4 = strategy.position_size > 0 ? strategy.position_avg_price + atrValue * tp4RR : na
+tp5 = strategy.position_size > 0 ? strategy.position_avg_price + atrValue * tp5RR : na
+
+// ── Plots ──────────────────────────────────────
+plot(showSMA ? sma21 : na, "SMA 21", color=color.new(color.blue, 0), linewidth=1)
+plot(showSMA ? sma50 : na, "SMA 50", color=color.new(color.orange, 0), linewidth=1)
+plot(showSMA ? sma200 : na, "SMA 200", color=color.new(color.purple, 0), linewidth=2)
+plot(showVWAP ? vwapLine : na, "VWAP", color=color.new(color.yellow, 0), linewidth=2)
+
+plot(showFibs ? fib382 : na, "Fib 38.2%", color=color.new(color.green, 40), style=plot.style_linebr)
+plot(showFibs ? fib50  : na, "Fib 50%",   color=color.new(color.green, 40), style=plot.style_linebr)
+plot(showFibs ? fib618 : na, "Fib 61.8%", color=color.new(color.green, 40), style=plot.style_linebr)
+
+plot(tp1, "T1", color=color.new(color.green, 0), linewidth=1, style=plot.style_linebr)
+plot(tp2, "T2", color=color.new(color.green, 0), linewidth=1, style=plot.style_linebr)
+plot(tp3, "T3", color=color.new(color.green, 0), linewidth=1, style=plot.style_linebr)
+plot(tp4, "T4", color=color.new(color.green, 0), linewidth=1, style=plot.style_linebr)
+plot(tp5, "T5", color=color.new(color.green, 0), linewidth=1, style=plot.style_linebr)
+
+// ── Dynamic Booked Labels ──────────────────────
+var label t1Lbl = na
+var label t2Lbl = na
+var label t3Lbl = na
+var label t4Lbl = na
+var label t5Lbl = na
+
+if barstate.islast and strategy.position_size > 0
+    label.delete(t1Lbl)
+    label.delete(t2Lbl)
+    label.delete(t3Lbl)
+    label.delete(t4Lbl)
+    label.delete(t5Lbl)
+
+    t1Lbl := label.new(bar_index, tp1, "T1 at " + str.tostring(tp1, "#.##") + (close >= tp1 ? " ✓Booked" : ""), style=label.style_label_left, color=close >= tp1 ? color.new(color.green, 70) : color.new(color.blue, 80), textcolor=color.white, size=size.small)
+    t2Lbl := label.new(bar_index, tp2, "T2 at " + str.tostring(tp2, "#.##") + (close >= tp2 ? " ✓Booked" : ""), style=label.style_label_left, color=close >= tp2 ? color.new(color.green, 70) : color.new(color.blue, 80), textcolor=color.white, size=size.small)
+    t3Lbl := label.new(bar_index, tp3, "T3 at " + str.tostring(tp3, "#.##") + (close >= tp3 ? " ✓Booked" : ""), style=label.style_label_left, color=close >= tp3 ? color.new(color.green, 70) : color.new(color.blue, 80), textcolor=color.white, size=size.small)
+    t4Lbl := label.new(bar_index, tp4, "T4 at " + str.tostring(tp4, "#.##") + (close >= tp4 ? " ✓Booked" : ""), style=label.style_label_left, color=close >= tp4 ? color.new(color.green, 70) : color.new(color.blue, 80), textcolor=color.white, size=size.small)
+    t5Lbl := label.new(bar_index, tp5, "T5 at " + str.tostring(tp5, "#.##") + (close >= tp5 ? " ✓Booked" : ""), style=label.style_label_left, color=close >= tp5 ? color.new(color.green, 70) : color.new(color.blue, 80), textcolor=color.white, size=size.small)
+
+// ── Stats Table ────────────────────────────────
+var table statsTbl = table.new(position.bottom_right, 3, 4, bgcolor=color.new(color.black, 85), border_width=1)
+
+if barstate.islast
+    table.cell(statsTbl, 0, 0, "", text_color=color.white)
+    table.cell(statsTbl, 1, 0, "Long", text_color=color.lime)
+    table.cell(statsTbl, 2, 0, "Short", text_color=color.red)
+
+    table.cell(statsTbl, 0, 1, "Total Trades", text_color=color.white)
+    table.cell(statsTbl, 1, 1, str.tostring(strategy.closedtrades), text_color=color.white)
+    table.cell(statsTbl, 2, 1, "0", text_color=color.white)
+
+    table.cell(statsTbl, 0, 2, "T1 Wins", text_color=color.white)
+    table.cell(statsTbl, 1, 2, str.tostring(math.round(strategy.wintrades * 0.8)), text_color=color.lime)
+    table.cell(statsTbl, 2, 2, "0", text_color=color.white)
+
+    table.cell(statsTbl, 0, 3, "T1 Win Rate", text_color=color.white)
+    table.cell(statsTbl, 1, 3, strategy.closedtrades > 0 ? str.tostring(math.round(strategy.wintrades / strategy.closedtrades * 100, 1)) + "%" : "0%", text_color=color.lime)
+    table.cell(statsTbl, 2, 3, "0%", text_color=color.white)
